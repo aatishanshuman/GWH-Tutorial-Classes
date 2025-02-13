@@ -17,8 +17,8 @@ Ly = 2000
 delx = 200
 dely = 200
 T = 500
-S = 0.00001
-Q = 0.001
+S = 0.001
+Q = 0.0005
 t_total = 10
 delt = 0.1  # Adjust for stability!
 
@@ -45,17 +45,16 @@ boundary = np.concatenate((left, right, top, bottom), axis=0)
 
 # Initialize head
 h = np.zeros(numnodes)
-h_old = np.zeros(numnodes)
+h_old = np.zeros(numnodes)+100
 h_old[left] = 100
-h_old[right] = 90
-h_old[top] = 0
-h_old[bottom] = 0
+h_old[right] = 100
+
 
 # Store head values at all time steps
 head_history = []
 time_history = []
 
-# Time loop
+# Implicit time-stepping
 t = 0.0
 while t <= t_total:
     print(t)
@@ -67,11 +66,11 @@ while t <= t_total:
         x = nodes[i][0]
         y = nodes[i][1]
 
-        A[i, i] = -4 * T / delx**2 - S / delt
-        if i in [closest_node([2500, 2500], nodes)]:
-            b[i] = -delx**2 * Q / T + S / delt * h_old[i]
-        else:
-            b[i] = S / delt * h_old[i]
+        # Coefficient for implicit method
+        A[i, i] = 4*T*delt /(S*delx**2)+1 # Diagonal term for implicit method
+
+      
+        b[i] = h_old[i]
 
         if i not in boundary:
             # Use closest_node for finding neighbors
@@ -80,38 +79,41 @@ while t <= t_total:
             east_node = closest_node([x + delx, y], nodes)
             west_node = closest_node([x - delx, y], nodes)
 
-            A[i, i] = -4 * T / delx**2 - S / delt  # Self coefficient for interior nodes
-            A[i, north_node] = T / delx**2
-            A[i, south_node] = T / delx**2
-            A[i, east_node] = T / delx**2
-            A[i, west_node] = T / delx**2
+            # Set coefficients for neighboring nodes
+            A[i, north_node] = -T*delt / (delx**2*S)
+            A[i, south_node] = -T*delt / (delx**2*S)
+            A[i, east_node] = -T*delt / (delx**2*S)
+            A[i, west_node] = -T*delt / (delx**2*S)
 
         if i in top:
             south_node = closest_node([x, y - dely], nodes)
             east_node = closest_node([x + delx, y], nodes)
             west_node = closest_node([x - delx, y], nodes)
 
-            A[i, south_node] = 2 * T / delx**2
-            A[i, east_node] = T / delx**2
-            A[i, west_node] = T / delx**2
+            A[i, south_node] = -2*T*delt / (delx**2*S)
+            A[i, east_node] = -T*delt / (delx**2*S)
+            A[i, west_node] = -T*delt / (delx**2*S)
 
         if i in bottom:
             north_node = closest_node([x, y + dely], nodes)
             east_node = closest_node([x + delx, y], nodes)
             west_node = closest_node([x - delx, y], nodes)
 
-            A[i, north_node] = 2 * T / delx**2
-            A[i, east_node] = T / delx**2
-            A[i, west_node] = T / delx**2
+            A[i, north_node] = -2*T*delt / (delx**2*S)
+            A[i, east_node] = -T*delt / (delx**2*S)
+            A[i, west_node] = -T*delt / (delx**2*S)
+
+    # Injection well
+    b[closest_node([1000, 1000], nodes)]= h_old[i] + Q*delt /S
 
     # Boundary conditions
     b[left] = 100
     A[left, left] = 1
 
-    b[right] = 90
+    b[right] =100
     A[right, right] = 1
 
-    # Solve the system
+    # Solve the system using the implicit method
     h = linalg.solve(A, b)
 
     # Store head and time
@@ -130,7 +132,7 @@ time_history = np.array(time_history)
 
 # Plot the last time step
 plt.figure(figsize=(8, 6))
-plt.tricontourf(nodes[:, 0], nodes[:, 1], head_history[-1], 20, cmap='viridis')
+plt.tricontourf(nodes[:, 0], nodes[:, 1], head_history[0],20, cmap='viridis')
 plt.colorbar(label='Head (m)')
 plt.xlabel('x (m)')
 plt.ylabel('y (m)')
@@ -148,17 +150,18 @@ plt.title(f'Head at Node {node_index} over Time')
 plt.grid(True)
 plt.show()
 
+#%%
 
 # Example: Animating the head distribution over time (if you have ffmpeg installed)
-# fig, ax = plt.subplots()
-# cont = ax.tricontourf(nodes[:, 0], nodes[:, 1], head_history[0], 20, cmap='viridis') # Initial frame
+fig, ax = plt.subplots()
+cont = ax.tricontourf(nodes[:, 0], nodes[:, 1], head_history[0], 20, cmap='viridis') # Initial frame
 
-# def animate(i):
-#     cont.remove()  # Clear the previous frame
-#     cont = ax.tricontourf(nodes[:, 0], nodes[:, 1], head_history[i], 20, cmap='viridis')
-#     ax.set_title(f'Head Distribution at t = {time_history[i]:.0f} days')
-#     return cont,
+def animate(i):
+    
+    cont = ax.tricontourf(nodes[:, 0], nodes[:, 1], head_history[i], 20, cmap='viridis')
+    ax.set_title(f'Head Distribution at t = {time_history[i]:.0f} days')
+    return cont,
 
-# ani = matplotlib.animation.FuncAnimation(fig, animate, frames=len(head_history), interval=50, blit=False)
-# ani.save('head_animation.gif', writer='pillow', fps=10) # Save as GIF (requires imageio)
-# plt.show()
+ani = matplotlib.animation.FuncAnimation(fig, animate, frames=len(head_history), interval=50, blit=False)
+ani.save('head_animation.gif', writer='pillow', fps=10) # Save as GIF (requires imageio)
+plt.show()

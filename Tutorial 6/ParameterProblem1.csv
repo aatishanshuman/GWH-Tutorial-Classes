@@ -1,0 +1,8 @@
+Parameter,Value
+Lx,200
+Ly,200
+ztop,0
+zbot,-50
+nlay,1
+ncol,20
+nrow,20

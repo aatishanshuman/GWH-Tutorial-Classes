@@ -26,7 +26,5 @@ Welcome to the Groundwater Hydrology Tutorial Series!
 
 By the end of this tutorial series, you'll have a basic understanding of groundwater hydrology, remote sensing data analysis, and the methods used to model and manage groundwater resources effectively. These skills will equip you to make informed decisions and contribute to the sustainable management of groundwater.
 
----
-
-We hope you enjoy learning and applying the techniques covered in these tutorials. Let's dive into groundwater hydrology!
+More tutorials to be added later.
 
